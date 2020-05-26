@@ -8,7 +8,7 @@ from typing import List
 
 """
 Data structures
----------------------- """
+----------------------- """
 
 Item = namedtuple("Item", ['index', 'value', 'weight'])
 
