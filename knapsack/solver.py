@@ -1,24 +1,40 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-
 from collections import namedtuple
 from pydantic import BaseModel
 from typing import List
 
-Item = namedtuple("Item", ['index', 'value', 'weight'])
 
+"""
+Data structures
+---------------------- """
+
+Item = namedtuple("Item", ['index', 'value', 'weight'])
 
 class Data(BaseModel):
     capacity: int
     items: List[Item]
 
+test_data = Data(
+    capacity=11,
+    items=[
+        Item(index=0, value=8, weight=4),
+        Item(index=1, value=10, weight=5),
+        Item(index=2, value=15, weight=8),
+        Item(index=3, value=4, weight=3)
+    ]
+)
 
 class Output(BaseModel):
     value: int
     weight: int
     selection: List[bool]
 
+
+"""
+Basic brute force (for loop stores all results)
+------------------------------------------------ """
 
 def brute_force(data):
     capacity = data.capacity
@@ -37,6 +53,10 @@ def brute_force(data):
                 item_selection = selection
     return Output(value=best_sum, weight=weight, selection=item_selection)
 
+
+"""
+Brute force with recursion (follow the tree)
+--------------------------------------------------- """
 
 def brute_force_rec(data):
 
@@ -72,6 +92,103 @@ def brute_force_rec(data):
     return res
 
 
+"""
+Brute force with recursion (follow the tree - no storage)
+------------------------------------------------------------ """
+
+best_val = 0
+best_weight = 0
+best_selection = []
+
+def brute_force_rec_light(data):
+    """ Without storing all intermediate results """
+    global best_val, best_weight, best_selection
+    capacity = data.capacity
+    items = data.items
+    n = len(items)
+
+    def _recursion(_items, cur_val, cur_weight, cur_selection):
+        global best_val, best_weight, best_selection
+        if len(_items) == 0:
+            if (cur_weight <= capacity) and (cur_val > best_val):
+                best_val = cur_val
+                best_weight = cur_weight
+                best_selection = [True if i in cur_selection else False for i in range(n)]
+        else:
+            item = _items[0]
+            _recursion(
+                _items[1:],
+                cur_val + item.value,
+                cur_weight + item.weight,
+                cur_selection + [item.index]
+            )
+            _recursion(
+                _items[1:],
+                cur_val,
+                cur_weight,
+                cur_selection
+            )
+
+    _recursion(items, 0, 0, [])
+    res = Output(value=best_val, weight=best_weight, selection=best_selection)
+
+    best_val = 0
+    best_weight = 0
+    best_selection = []
+
+    return res
+
+
+"""
+Brute force with recursion (follow the tree - no storage - no globals)
+---------------------------------------------------------------------- """
+
+class BruteForceRecLightNoGlob:
+
+    def __init__(self, data):
+        self.best_val = 0
+        self.best_weight = 0
+        self.best_selection = []
+        self.capacity = data.capacity
+        self.items = data.items
+        self.n = len(self.items)
+        self.solved = False
+
+    def _recursion(self, _items, cur_val, cur_weight, cur_selection):
+        if len(_items) == 0:
+            if (cur_weight <= self.capacity) and (cur_val > self.best_val):
+                self.best_val = cur_val
+                self.best_weight = cur_weight
+                self.best_selection = [True if i in cur_selection else False for i in range(self.n)]
+        else:
+            item = _items[0]
+            self._recursion(
+                _items[1:],
+                cur_val + item.value,
+                cur_weight + item.weight,
+                cur_selection + [item.index]
+            )
+            self._recursion(
+                _items[1:],
+                cur_val,
+                cur_weight,
+                cur_selection
+            )
+
+    def solve(self):
+        self._recursion(self.items, 0, 0, [])
+        self.solved = True
+
+    def get(self):
+        if not self.solved:
+            self.solve()
+        return Output(value=self.best_val, weight=self.best_weight, selection=self.best_selection)
+
+def brute_force_rec_light_no_glob(data):
+    return BruteForceRecLightNoGlob(data).get()
+
+
+""" ----------------------------- """
 
 def dynamic_programming(data):
     pass
@@ -92,6 +209,8 @@ def least_discrepancy_search(data):
 solvers = {
     'brute_force': brute_force,
     'brute_force_rec': brute_force_rec,
+    'brute_force_rec_light': brute_force_rec_light,
+    'brute_force_rec_light_no_glob': brute_force_rec_light_no_glob,
     'dynamic_programming': dynamic_programming,
     'depth_first_search': depth_first_search,
     'best_first_search': best_first_search,
@@ -101,7 +220,7 @@ solvers = {
 
 def solve_it(input_data, solver=None):
 
-    solver = solver or 'brute_force'  # hidden default
+    solver = solver or 'brute_force_rec_light_no_glob'  # hidden default
 
     # parse the input
     lines = input_data.split('\n')
