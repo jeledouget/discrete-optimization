@@ -1,9 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import sys
+from time import time
 from collections import namedtuple
 from pydantic import BaseModel
 from typing import List
+import pandas as pd
 
 
 """
@@ -248,14 +251,37 @@ def solve_it(input_data, solver=None):
     return output_data
 
 
+def solve_file(file_location, solver=None):
+    with open(file_location, 'r') as input_data_file:
+        input_data = input_data_file.read()
+    return solve_it(input_data, solver=solver)
+
+
+def plot_response_time(_solvers=(
+            'brute_force',
+            'brute_force_rec',
+            'brute_force_rec_light',
+            'brute_force_rec_light_no_glob'
+        ),
+        _n=(4, 8, 12, 16, 19, 23)):
+
+    _files = ['.data/ks_{n}_0' for n in _n]
+    df = pd.DataFrame(index=_n, columns=_solvers)
+    for s in _solvers:
+        for n in _n:
+            t = time()
+            solve_file(f'./data/ks_{n}_0', s)
+            df.loc[n, s] = time() - t
+    df.plot(marker='*', markerfacecolor="None", logy=True, xticks=_n,
+            title='Time elapsed (seconds) against number of items')
+    return df
+
+
 if __name__ == '__main__':
-    import sys
     if len(sys.argv) > 1:
         file_location = sys.argv[1].strip()
-        with open(file_location, 'r') as input_data_file:
-            input_data = input_data_file.read()
         solver = sys.argv[2].strip() if len(sys.argv) > 2 else None
-        print(solve_it(input_data, solver=solver))
+        print(solve_file(file_location, solver=None))
         print()
     else:
         print('This test requires an input file.  '
