@@ -7,6 +7,8 @@ from collections import namedtuple
 from pydantic import BaseModel
 from typing import List
 import pandas as pd
+import numpy as np
+from timeout_decorator import timeout, TimeoutError
 
 
 """
@@ -220,41 +222,45 @@ solvers = {
     'least_discrepancy_search': least_discrepancy_search
 }
 
+def solve_it(input_data, solver=None, _timeout=30):
 
-def solve_it(input_data, solver=None):
+    @timeout(_timeout)
+    def solve_it_timeout(input_data, solver):
 
-    solver = solver or 'brute_force_rec_light_no_glob'  # hidden default
+        solver = solver or 'brute_force_rec_light_no_glob'  # hidden default
 
-    # parse the input
-    lines = input_data.split('\n')
-    first_line = lines[0].split()
-    item_count = int(first_line[0])
-    capacity = int(first_line[1])
+        # parse the input
+        lines = input_data.split('\n')
+        first_line = lines[0].split()
+        item_count = int(first_line[0])
+        capacity = int(first_line[1])
 
-    items = []
+        items = []
 
-    for i in range(1, item_count+1):
-        line = lines[i]
-        parts = line.split()
-        items.append(Item(i-1, int(parts[0]), int(parts[1])))
+        for i in range(1, item_count+1):
+            line = lines[i]
+            parts = line.split()
+            items.append(Item(i-1, int(parts[0]), int(parts[1])))
 
-    data = Data(items=items, capacity=capacity)
+        data = Data(items=items, capacity=capacity)
 
-    print(f"\n### Using Solver {solver} ###")
-    res = solvers[solver](data)
-    
-    # prepare the solution in the specified output format
-    output_data = '\n'.join([
-        str(res.value) + ' ' + str(0),
-        ' '.join([str(int(_)) for _ in res.selection])
-    ])
-    return output_data
+        print(f"\n### Using Solver {solver} ###")
+        res = solvers[solver](data)
+
+        # prepare the solution in the specified output format
+        output_data = '\n'.join([
+            str(res.value) + ' ' + str(0),
+            ' '.join([str(int(_)) for _ in res.selection])
+        ])
+        return output_data
+
+    return solve_it_timeout(input_data, solver)
 
 
-def solve_file(file_location, solver=None):
+def solve_file(file_location, solver=None, _timeout=30):
     with open(file_location, 'r') as input_data_file:
         input_data = input_data_file.read()
-    return solve_it(input_data, solver=solver)
+    return solve_it(input_data, solver=solver, _timeout=_timeout)
 
 
 def plot_response_time(_solvers=(
@@ -263,16 +269,20 @@ def plot_response_time(_solvers=(
             'brute_force_rec_light',
             'brute_force_rec_light_no_glob'
         ),
-        _n=(4, 8, 12, 16, 19, 23)):
+        _n=(4, 8, 12, 16, 19, 23),
+        _timeout=10):
 
     _files = ['.data/ks_{n}_0' for n in _n]
     df = pd.DataFrame(index=_n, columns=_solvers)
     for s in _solvers:
         for n in _n:
             t = time()
-            solve_file(f'./data/ks_{n}_0', s)
-            df.loc[n, s] = time() - t
-    df.plot(marker='*', markerfacecolor="None", logy=True, xticks=_n,
+            try:
+                solve_file(f'./data/ks_{n}_0', s, _timeout=_timeout)
+                df.loc[n, s] = time() - t
+            except TimeoutError:
+                df.loc[n, s] = np.nan
+    df.plot(marker='s', markerfacecolor="None", logy=True, xticks=_n,
             title='Time elapsed (seconds) against number of items')
     return df
 
