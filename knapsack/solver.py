@@ -194,10 +194,39 @@ def brute_force_rec_light_no_glob(data):
     return BruteForceRecLightNoGlob(data).get()
 
 
-""" ----------------------------- """
+""" 
+Dynamic Programming
+----------------------------- """
+
 
 def dynamic_programming(data):
-    pass
+    # params
+    capacity = data.capacity
+    items = data.items
+    n = len(items)
+    # fill array
+    arr = np.zeros((capacity+1, n+1), dtype=int)
+    for i in range(n):
+        for j in range(capacity+1):
+            w = items[i].weight
+            v = items[i].value
+            arr[j, i+1] = max(arr[j, i], arr[j-w, i] + v if w <= j else 0)
+    # final optimal value
+    value = arr[capacity,n]
+    # trace back selected items and used capacity
+    selection = [False] * n
+    current_capacity = capacity
+    current_weight = 0
+    for i in range(n, 0, -1):
+        item = items[i-1]
+        if arr[current_capacity, i] > arr[current_capacity, i-1]:
+            selection[i-1] = True
+            current_weight += item.weight
+            current_capacity -= item.weight
+    # return
+    return Output(value=value, weight=current_weight, selection=selection)
+
+
 
 
 def depth_first_search(data):
