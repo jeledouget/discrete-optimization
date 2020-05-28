@@ -303,6 +303,79 @@ def depth_first_search(data):
     return DepthFirstSearch(data).get()
 
 
+""" 
+Without recursion 
+----------------------- """
+
+class DepthFirstSearchNoRec:
+
+    def __init__(self, data):
+        self.capacity = data.capacity
+        self.items = data.items
+        self.n = len(self.items)
+        self.visited_nodes = 0
+        self.node_stack = []
+        self.best_node = None
+        self.solved = False
+
+    @staticmethod
+    def estimation(initial, items):
+        return initial + sum([i.value for i in items])
+
+    def run(self):
+        while len(self.node_stack) > 0:
+            # pop last node
+            node = self.node_stack.pop(-1)
+            self.visited_nodes += 1
+            if node.index == self.n:  # all items visited
+                if (node.room >= 0) and (self.best_node.value < node.value):
+                    self.best_node = node
+            else:
+                # append right first (will be explored later): do not take next item
+                right_val = node.value
+                right_estimate = self.estimation(right_val, self.items[node.index+1:])
+                if right_estimate > self.best_node.value:
+                    right = Node(
+                        value=node.value,
+                        room=node.room,
+                        index=node.index + 1,
+                        estimate=right_estimate,
+                        selection=node.selection + []  # list copy
+                    )
+                    self.node_stack.append(right)
+                # then append left (will be explored first): take next item
+                left_room = node.room - self.items[node.index].weight
+                if left_room >= 0:
+                    left_val = node.value + self.items[node.index].value
+                    left = Node(
+                        value=left_val,
+                        room=left_room,
+                        index=node.index + 1,
+                        estimate=self.estimation(left_val, self.items[node.index + 1:]),
+                        selection=node.selection + [node.index]
+                    )
+                    self.node_stack.append(left)
+
+    def solve(self):
+        start_node = Node(value=0, room=self.capacity, estimate=self.estimation(0, self.items), index=0, selection=[])
+        self.node_stack.append(start_node)
+        self.best_node = start_node
+        self.run()
+        print(f'Total visited nodes: {self.visited_nodes}')
+        self.solved = True
+
+    def get(self):
+        if not self.solved:
+            self.solve()
+        node = self.best_node
+        selection = [i in node.selection for i in range(self.n)]
+        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+
+
+def depth_first_search_no_rec(data):
+    return DepthFirstSearchNoRec(data).get()
+
+
 """ ------------ """
 
 
@@ -321,16 +394,17 @@ solvers = {
     'brute_force_rec_light_no_glob': brute_force_rec_light_no_glob,
     'dynamic_programming': dynamic_programming,
     'depth_first_search': depth_first_search,
+    'depth_first_search_no_rec': depth_first_search_no_rec,
     'best_first_search': best_first_search,
     'least_discrepancy_search': least_discrepancy_search
 }
 
-def solve_it(input_data, solver=None, _timeout=300):
+def solve_it(input_data, solver=None, _timeout=500):
 
     @timeout(_timeout)
     def solve_it_timeout(input_data, solver):
 
-        solver = solver or 'depth_first_search'  # hidden default
+        solver = solver or 'depth_first_search_no_rec'  # hidden default
 
         # parse the input
         lines = input_data.split('\n')
