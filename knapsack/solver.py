@@ -56,7 +56,8 @@ def brute_force(data):
             if val > best_sum:
                 best_sum = val
                 item_selection = selection
-    return Output(value=best_sum, weight=weight, selection=item_selection)
+                final_weight = weight
+    return Output(value=best_sum, weight=final_weight, selection=item_selection)
 
 
 """
