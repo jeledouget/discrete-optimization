@@ -72,7 +72,7 @@ def brute_force_rec(data):
 
     def _recursion(_items, cur_val, cur_weight, cur_selection):
         if len(_items) == 0:
-            bool_selection = [True if i in cur_selection else False for i in range(n)]
+            bool_selection = [i in cur_selection for i in range(n)]
             return [Output(value=cur_val, weight=cur_weight, selection=bool_selection)]
         else:
             item = _items[0]
@@ -165,7 +165,7 @@ class BruteForceRecLightNoGlob:
             if (cur_weight <= self.capacity) and (cur_val > self.best_val):
                 self.best_val = cur_val
                 self.best_weight = cur_weight
-                self.best_selection = [True if i in cur_selection else False for i in range(self.n)]
+                self.best_selection = [i in cur_selection for i in range(self.n)]
         else:
             item = _items[0]
             self._recursion(
@@ -325,12 +325,12 @@ solvers = {
     'least_discrepancy_search': least_discrepancy_search
 }
 
-def solve_it(input_data, solver=None, _timeout=30):
+def solve_it(input_data, solver=None, _timeout=300):
 
     @timeout(_timeout)
     def solve_it_timeout(input_data, solver):
 
-        solver = solver or 'brute_force_rec_light_no_glob'  # hidden default
+        solver = solver or 'depth_first_search'  # hidden default
 
         # parse the input
         lines = input_data.split('\n')
@@ -370,12 +370,13 @@ def plot_response_time(_solvers=(
             'brute_force',
             'brute_force_rec',
             'brute_force_rec_light',
-            'brute_force_rec_light_no_glob'
+            'brute_force_rec_light_no_glob',
+            'dynamic_programming',
+            'depth_first_search'
         ),
-        _n=(4, 8, 12, 16, 19, 23),
-        _timeout=10):
+        _n=(4, 8, 12, 16, 19, 23, 25, 30),
+        _timeout=30):
 
-    _files = ['.data/ks_{n}_0' for n in _n]
     df = pd.DataFrame(index=_n, columns=_solvers)
     for s in _solvers:
         for n in _n:
