@@ -227,10 +227,83 @@ def dynamic_programming(data):
     return Output(value=value, weight=current_weight, selection=selection)
 
 
+""" 
+Branch and bond: depth first search
+------------------------------------ """
+
+class Node(BaseModel):
+    value: int
+    room: int
+    estimate: int
+    index: int
+    selection: List[int]
+
+
+class DepthFirstSearch:
+
+    def __init__(self, data):
+        self.capacity = data.capacity
+        self.items = data.items
+        self.n = len(self.items)
+        self.visited_nodes = 0
+        self.best_node = None
+        self.solved = False
+
+    @staticmethod
+    def estimation(initial, items):
+        return initial + sum([i.value for i in items])
+
+    def recursion(self, node):
+        self.visited_nodes += 1
+        if node.index == self.n:  # all items visited
+            if (node.room >= 0) and (self.best_node.value < node.value):
+                self.best_node = node
+        else:
+            # start left: take next item
+            left_room = node.room - self.items[node.index].weight
+            if left_room >= 0:
+                left_val = node.value + self.items[node.index].value
+                left = Node(
+                    value=left_val,
+                    room=left_room,
+                    index=node.index + 1,
+                    estimate=self.estimation(left_val, self.items[node.index + 1:]),
+                    selection=node.selection + [node.index]
+                )
+                self.recursion(left)
+            # then explore right: do not take next item
+            right_val = node.value
+            right_estimate = self.estimation(right_val, self.items[node.index+1:])
+            if right_estimate > self.best_node.value:
+                right = Node(
+                    value=node.value,
+                    room=node.room,
+                    index=node.index + 1,
+                    estimate=right_estimate,
+                    selection=node.selection + []  # list copy
+                )
+                self.recursion(right)
+
+    def solve(self):
+        start_node = Node(value=0, room=self.capacity, estimate=self.estimation(0, self.items), index=0, selection=[])
+        self.best_node = start_node
+        self.recursion(start_node)
+        print(f'Visited Nodes in Total: {self.visited_nodes}')
+        self.solved = True
+
+    def get(self):
+        if not self.solved:
+            self.solve()
+        node = self.best_node
+        selection = [i in node.selection for i in range(self.n)]
+        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
 
 
 def depth_first_search(data):
-    pass
+    return DepthFirstSearch(data).get()
+
+
+""" ------------ """
 
 
 def best_first_search(data):
