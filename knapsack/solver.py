@@ -322,7 +322,7 @@ class DepthFirstSearchNoRec:
     def estimation(initial, items):
         return initial + sum([i.value for i in items])
 
-    def run(self):
+    def consume_stack(self):
         while len(self.node_stack) > 0:
             # pop last node
             node = self.node_stack.pop(-1)
@@ -360,7 +360,7 @@ class DepthFirstSearchNoRec:
         start_node = Node(value=0, room=self.capacity, estimate=self.estimation(0, self.items), index=0, selection=[])
         self.node_stack.append(start_node)
         self.best_node = start_node
-        self.run()
+        self.consume_stack()
         print(f'Total visited nodes: {self.visited_nodes}')
         self.solved = True
 
