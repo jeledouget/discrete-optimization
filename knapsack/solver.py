@@ -407,16 +407,104 @@ def depth_first_search_no_rec(data):
     return DepthFirstSearchNoRec(data).get()
 
 
-""" ------------ """
+""" 
+Branch and bond: best first search
+------------------------------------ """
 
 
-def best_first_search(data):
-    pass
+class BestFirstSearchNoRec:
+
+    def __init__(self, data):
+        self.capacity = data.capacity
+        self.items = data.items
+        self.n = len(self.items)
+        self.visited_nodes = 0
+        self.node_bag = []
+        self.best_node = None
+        self.solved = False
+
+    def consume_bag(self):
+        while len(self.node_bag) > 0:
+            # nodes are previously sorted by estimate
+            # pop node with best estimate
+            node = self.node_bag.pop(-1)
+            self.visited_nodes += 1
+            if node.level == self.n:  # all items visited
+                if (node.room >= 0) and (self.best_node.value < node.value):
+                    self.best_node = node
+            else:
+                item = self.items[node.level]
+                # append right first (will be explored later): do not take next item
+                right_val = node.value
+                right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
+                if right_estimate > self.best_node.value:
+                    right = Node(
+                        value=node.value,
+                        room=node.room,
+                        level=node.level + 1,
+                        estimate=right_estimate,
+                        selection=node.selection + []  # list copy
+                    )
+                    self.node_bag.append(right)
+                # then append left (will be explored first): take next item
+                left_room = node.room - item.weight
+                if left_room >= 0:
+                    left_val = node.value + item.value
+                    left = Node(
+                        value=left_val,
+                        room=left_room,
+                        level=node.level + 1,
+                        estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                        selection=node.selection + [item.index]
+                    )
+                    self.node_bag.append(left)
+                # sort nodes
+                self.node_bag.sort(key=lambda x: x.estimate)
+
+    def solve(self):
+        # sort
+        self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
+        # init
+        start_node = Node(
+            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+        )
+        self.node_bag.append(start_node)
+        self.best_node = start_node
+        # solve
+        self.consume_bag()
+        nnodes = f'{2 ** self.n:.1E}' if self.n < 1024 else f'2**{self.n}'
+        print(
+            f'Total visited nodes: '
+            f'{self.visited_nodes:.1E}/' +
+            nnodes +
+            f'({100 * self.visited_nodes / (2 ** self.n):.0f}%)'
+        )
+        self.solved = True
+
+    def get(self):
+        if not self.solved:
+            self.solve()
+        node = self.best_node
+        selection = [i in node.selection for i in range(self.n)]
+        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+
+
+def best_first_search_no_rec(data):
+    return BestFirstSearchNoRec(data).get()
+
+
+""" 
+Least discrepancy search
+------------------------------------ """
 
 
 def least_discrepancy_search(data):
     pass
 
+
+""" 
+Factories / submissions / etc.
+------------------------------------ """
 
 solvers = {
     'brute_force': brute_force,
@@ -426,7 +514,7 @@ solvers = {
     'dynamic_programming': dynamic_programming,
     'depth_first_search': depth_first_search,
     'depth_first_search_no_rec': depth_first_search_no_rec,
-    'best_first_search': best_first_search,
+    'best_first_search_no_rec': best_first_search_no_rec,
     'least_discrepancy_search': least_discrepancy_search
 }
 
@@ -434,7 +522,7 @@ def solve_it(input_data, solver=None, _timeout=None):
 
     def _solve_it(input_data, solver):
 
-        solver = solver or 'depth_first_search_no_rec'  # hidden default
+        solver = solver or 'best_first_search_no_rec'  # hidden default
 
         data = parse_data(input_data)
 
