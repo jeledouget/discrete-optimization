@@ -490,15 +490,12 @@ def parse_file(input_file):
 
 
 def plot_response_time(_solvers=(
-            'brute_force',
-            'brute_force_rec',
-            'brute_force_rec_light',
             'brute_force_rec_light_no_glob',
             'dynamic_programming',
-            'depth_first_search'
+            'depth_first_search_no_rec'
         ),
-        _n=(4, 8, 12, 16, 19, 23, 25, 30),
-        _timeout=30):
+        _n=(4, 8, 12, 16, 19, 23, 25, 30, 50, 100),
+        _timeout=10):
 
     df = pd.DataFrame(index=_n, columns=_solvers)
     for s in _solvers:
