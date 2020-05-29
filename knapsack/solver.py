@@ -235,8 +235,21 @@ class Node(BaseModel):
     value: int
     room: int
     estimate: int
-    index: int
+    level: int
     selection: List[int]
+
+
+def estimation(value, room, items):
+    added_value = 0
+    added_weight = 0
+    for item in items:
+        if added_weight + item.weight <= room:
+            added_value += item.value
+            added_weight += item.weight
+        else:
+            added_value += item.value * (room - added_weight) / item.weight
+            break
+    return value + added_value
 
 
 class DepthFirstSearch:
@@ -249,46 +262,55 @@ class DepthFirstSearch:
         self.best_node = None
         self.solved = False
 
-    @staticmethod
-    def estimation(initial, items):
-        return initial + sum([i.value for i in items])
-
     def recursion(self, node):
         self.visited_nodes += 1
-        if node.index == self.n:  # all items visited
+        if node.level == self.n:  # all items visited
             if (node.room >= 0) and (self.best_node.value < node.value):
                 self.best_node = node
         else:
+            item = self.items[node.level]
             # start left: take next item
-            left_room = node.room - self.items[node.index].weight
+            left_room = node.room - item.weight
             if left_room >= 0:
-                left_val = node.value + self.items[node.index].value
+                left_val = node.value + item.value
                 left = Node(
                     value=left_val,
                     room=left_room,
-                    index=node.index + 1,
-                    estimate=self.estimation(left_val, self.items[node.index + 1:]),
-                    selection=node.selection + [node.index]
+                    level=node.level + 1,
+                    estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                    selection=node.selection + [item.index]
                 )
                 self.recursion(left)
             # then explore right: do not take next item
             right_val = node.value
-            right_estimate = self.estimation(right_val, self.items[node.index+1:])
+            right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
             if right_estimate > self.best_node.value:
                 right = Node(
                     value=node.value,
                     room=node.room,
-                    index=node.index + 1,
+                    level=node.level + 1,
                     estimate=right_estimate,
                     selection=node.selection + []  # list copy
                 )
                 self.recursion(right)
 
     def solve(self):
-        start_node = Node(value=0, room=self.capacity, estimate=self.estimation(0, self.items), index=0, selection=[])
+        # sort
+        self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
+        # init
+        start_node = Node(
+            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+        )
         self.best_node = start_node
+        # solve
         self.recursion(start_node)
-        print(f'Visited Nodes in Total: {self.visited_nodes}')
+        nnodes = f'{2**self.n:.1E}' if self.n < 1024 else f'2**{self.n}'
+        print(
+            f'Total visited nodes: '
+            f'{self.visited_nodes:.1E}/' +
+            nnodes +
+            f'({100 * self.visited_nodes/(2**self.n):.0f}%)'
+        )
         self.solved = True
 
     def get(self):
@@ -318,50 +340,59 @@ class DepthFirstSearchNoRec:
         self.best_node = None
         self.solved = False
 
-    @staticmethod
-    def estimation(initial, items):
-        return initial + sum([i.value for i in items])
-
     def consume_stack(self):
         while len(self.node_stack) > 0:
             # pop last node
             node = self.node_stack.pop(-1)
             self.visited_nodes += 1
-            if node.index == self.n:  # all items visited
+            if node.level == self.n:  # all items visited
                 if (node.room >= 0) and (self.best_node.value < node.value):
                     self.best_node = node
             else:
+                item = self.items[node.level]
                 # append right first (will be explored later): do not take next item
                 right_val = node.value
-                right_estimate = self.estimation(right_val, self.items[node.index+1:])
+                right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
                 if right_estimate > self.best_node.value:
                     right = Node(
                         value=node.value,
                         room=node.room,
-                        index=node.index + 1,
+                        level=node.level + 1,
                         estimate=right_estimate,
                         selection=node.selection + []  # list copy
                     )
                     self.node_stack.append(right)
                 # then append left (will be explored first): take next item
-                left_room = node.room - self.items[node.index].weight
+                left_room = node.room - item.weight
                 if left_room >= 0:
-                    left_val = node.value + self.items[node.index].value
+                    left_val = node.value + item.value
                     left = Node(
                         value=left_val,
                         room=left_room,
-                        index=node.index + 1,
-                        estimate=self.estimation(left_val, self.items[node.index + 1:]),
-                        selection=node.selection + [node.index]
+                        level=node.level + 1,
+                        estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                        selection=node.selection + [item.index]
                     )
                     self.node_stack.append(left)
 
     def solve(self):
-        start_node = Node(value=0, room=self.capacity, estimate=self.estimation(0, self.items), index=0, selection=[])
+        # sort
+        self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
+        # init
+        start_node = Node(
+            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+        )
         self.node_stack.append(start_node)
         self.best_node = start_node
+        # solve
         self.consume_stack()
-        print(f'Total visited nodes: {self.visited_nodes}')
+        nnodes = f'{2 ** self.n:.1E}' if self.n < 1024 else f'2**{self.n}'
+        print(
+            f'Total visited nodes: '
+            f'{self.visited_nodes:.1E}/' +
+            nnodes +
+            f'({100 * self.visited_nodes / (2 ** self.n):.0f}%)'
+        )
         self.solved = True
 
     def get(self):
@@ -399,27 +430,13 @@ solvers = {
     'least_discrepancy_search': least_discrepancy_search
 }
 
-def solve_it(input_data, solver=None, _timeout=500):
+def solve_it(input_data, solver=None, _timeout=None):
 
-    @timeout(_timeout)
-    def solve_it_timeout(input_data, solver):
+    def _solve_it(input_data, solver):
 
         solver = solver or 'depth_first_search_no_rec'  # hidden default
 
-        # parse the input
-        lines = input_data.split('\n')
-        first_line = lines[0].split()
-        item_count = int(first_line[0])
-        capacity = int(first_line[1])
-
-        items = []
-
-        for i in range(1, item_count+1):
-            line = lines[i]
-            parts = line.split()
-            items.append(Item(i-1, int(parts[0]), int(parts[1])))
-
-        data = Data(items=items, capacity=capacity)
+        data = parse_data(input_data)
 
         print(f"\n### Using Solver {solver} ###")
         res = solvers[solver](data)
@@ -431,13 +448,45 @@ def solve_it(input_data, solver=None, _timeout=500):
         ])
         return output_data
 
-    return solve_it_timeout(input_data, solver)
+    if _timeout:
+
+        @timeout(_timeout)
+        def really_solve_it(*args, **kwargs):
+            return _solve_it(*args, **kwargs)
+
+    else:
+        really_solve_it = _solve_it
+
+    return really_solve_it(input_data, solver)
 
 
 def solve_file(file_location, solver=None, _timeout=30):
     with open(file_location, 'r') as input_data_file:
         input_data = input_data_file.read()
     return solve_it(input_data, solver=solver, _timeout=_timeout)
+
+
+def parse_data(input_data):
+    # parse the input
+    lines = input_data.split('\n')
+    first_line = lines[0].split()
+    item_count = int(first_line[0])
+    capacity = int(first_line[1])
+
+    items = []
+
+    for i in range(1, item_count + 1):
+        line = lines[i]
+        parts = line.split()
+        items.append(Item(i - 1, int(parts[0]), int(parts[1])))
+
+    return Data(items=items, capacity=capacity)
+
+
+def parse_file(input_file):
+    with open(input_file, 'r') as input_data_file:
+        input_data = input_data_file.read()
+    return parse_data(input_data)
 
 
 def plot_response_time(_solvers=(
