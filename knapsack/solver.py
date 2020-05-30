@@ -480,7 +480,7 @@ class BestFirstSearchNoRec:
                         estimate=right_estimate,
                         selection=node.selection + []  # list copy
                     )
-                    insort_nodes(self.node_bag, right)
+                    self.node_bag = insort_nodes(self.node_bag, right)
                 # then append left (will be explored first): take next item
                 left_room = node.room - item.weight
                 if left_room >= 0:
@@ -492,7 +492,7 @@ class BestFirstSearchNoRec:
                         estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
                         selection=node.selection + [item.index]
                     )
-                    insort_nodes(self.node_bag, left)
+                    self.node_bag = insort_nodes(self.node_bag, left)
 
     def solve(self):
         # sort
