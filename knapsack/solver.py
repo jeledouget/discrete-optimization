@@ -530,9 +530,94 @@ Least discrepancy search
 ------------------------------------ """
 
 
-def least_discrepancy_search(data):
-    pass
+class LeastDiscrepancySearch:
 
+    def __init__(self, data, greedy=True):
+        self.capacity = data.capacity
+        self.items = data.items
+        self.n = len(self.items)
+        # greedy: tries first all-but-k objects. non-greedy: tries first k-maximum objects
+        self.greedy = 1 if greedy else -1
+        self.visited_nodes = 0
+        self.best_node = None
+        self.solved = False
+
+    def consume_bag(self, start_node):
+        for wave in range(self.n + 1):
+            max_items = wave if (not self.greedy) else self.n - wave
+            node_bag = [start_node]
+            while len(node_bag) > 0:
+                # nodes are previously sorted by estimate
+                # pop node with best estimate
+                node = node_bag.pop(-1)
+                self.visited_nodes += 1
+                if node.level == self.n:  # all items visited
+                    if (node.room >= 0) and (self.best_node.value < node.value):
+                        self.best_node = node
+                else:
+                    item = self.items[node.level]
+                    n_current_items = len(node.selection)
+                    n_items_room = max_items - n_current_items
+                    n_down_items = self.n - node.level
+                    if n_down_items >= n_items_room:
+                        # append right first (will be explored later): do not take next item
+                        right_val = node.value
+                        right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
+                        if right_estimate > self.best_node.value:
+                            right = Node(
+                                value=node.value,
+                                room=node.room,
+                                level=node.level + 1,
+                                estimate=right_estimate,
+                                selection=node.selection + []  # list copy
+                            )
+                            insort_nodes(node_bag, right)
+                    if n_current_items < max_items:
+                        # then append left (will be explored first): take next item
+                        left_room = node.room - item.weight
+                        if left_room >= 0:
+                            left_val = node.value + item.value
+                            left = Node(
+                                value=left_val,
+                                room=left_room,
+                                level=node.level + 1,
+                                estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                                selection=node.selection + [item.index]
+                            )
+                            insort_nodes(node_bag, left)
+
+    def solve(self):
+        # sort
+        self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
+        # init
+        start_node = Node(
+            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+        )
+        self.best_node = start_node
+        # solve
+        self.consume_bag(start_node)
+        nnodes = f'{2 ** self.n:.1E}' if self.n < 1024 else f'2**{self.n}'
+        print(
+            f'Total visited nodes: '
+            f'{self.visited_nodes:.1E}/' +
+            nnodes +
+            f'({100 * self.visited_nodes / (2 ** self.n):.0f}%)'
+        )
+        self.solved = True
+
+    def get(self):
+        if not self.solved:
+            self.solve()
+        node = self.best_node
+        selection = [i in node.selection for i in range(self.n)]
+        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+
+
+def least_discrepancy_search(data):
+    return LeastDiscrepancySearch(data, greedy=True).get()
+
+def least_discrepancy_search_non_greedy(data):
+    return LeastDiscrepancySearch(data, greedy=False).get()
 
 """ 
 Factories / submissions / etc.
@@ -547,10 +632,11 @@ solvers = {
     'depth_first_search': depth_first_search,
     'depth_first_search_no_rec': depth_first_search_no_rec,
     'best_first_search_no_rec': best_first_search_no_rec,
-    'least_discrepancy_search': least_discrepancy_search
+    'least_discrepancy_search': least_discrepancy_search,
+    'least_discrepancy_search_non_greedy': least_discrepancy_search_non_greedy
 }
 
-def solve_it(input_data, solver=None, _timeout=None):
+def solve_it(input_data, solver=None, _timeout=None, **kwargs):
 
     def _solve_it(input_data, solver):
 
@@ -559,7 +645,7 @@ def solve_it(input_data, solver=None, _timeout=None):
         data = parse_data(input_data)
 
         print(f"\n### Using Solver {solver} ###")
-        res = solvers[solver](data)
+        res = solvers[solver](data, **kwargs)
 
         # prepare the solution in the specified output format
         output_data = '\n'.join([
