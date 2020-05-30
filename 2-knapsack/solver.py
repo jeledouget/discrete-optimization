@@ -750,7 +750,7 @@ def solve_it(input_data, solver=None, _timeout=None, **kwargs):
 
         # prepare the solution in the specified output format
         output_data = '\n'.join([
-            str(res.value) + ' ' + str(res.opt),
+            str(res.value) + ' ' + str(int(res.opt)),
             ' '.join([str(int(_)) for _ in res.selection])
         ])
         return output_data
