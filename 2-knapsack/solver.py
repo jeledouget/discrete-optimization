@@ -73,7 +73,13 @@ def brute_force_rec(data):
     def _recursion(_items, cur_val, cur_weight, cur_selection):
         if len(_items) == 0:
             bool_selection = [i in cur_selection for i in range(n)]
-            return [Output(value=cur_val, weight=cur_weight, selection=bool_selection)]
+            return [
+                Output(
+                    value=cur_val,
+                    weight=cur_weight,
+                    selection=bool_selection
+                )
+            ]
         else:
             item = _items[0]
             return [
@@ -119,7 +125,7 @@ def brute_force_rec_light(data):
             if (cur_weight <= capacity) and (cur_val > best_val):
                 best_val = cur_val
                 best_weight = cur_weight
-                best_selection = [True if i in cur_selection else False for i in range(n)]
+                best_selection = [i in cur_selection for i in range(n)]
         else:
             item = _items[0]
             _recursion(
@@ -188,7 +194,11 @@ class BruteForceRecLightNoGlob:
     def get(self):
         if not self.solved:
             self.solve()
-        return Output(value=self.best_val, weight=self.best_weight, selection=self.best_selection)
+        return Output(
+            value=self.best_val,
+            weight=self.best_weight,
+            selection=self.best_selection
+        )
 
 def brute_force_rec_light_no_glob(data):
     return BruteForceRecLightNoGlob(data).get()
@@ -210,7 +220,10 @@ def dynamic_programming(data):
         for j in range(capacity+1):
             w = items[i].weight
             v = items[i].value
-            arr[j, i+1] = max(arr[j, i], arr[j-w, i] + v if w <= j else 0)
+            arr[j, i+1] = max(
+                arr[j, i],
+                arr[j-w, i] + v if w <= j else 0
+            )
     # final optimal value
     value = arr[capacity,n]
     # trace back selected items and used capacity
@@ -228,8 +241,8 @@ def dynamic_programming(data):
 
 
 """ 
-Branch and bond: depth first search
------------------------------------- """
+Branch and bond: model and estimation
+---------------------------------------- """
 
 class Node(BaseModel):
     value: int
@@ -250,6 +263,11 @@ def estimation(value, room, items):
             added_value += item.value * (room - added_weight) / item.weight
             break
     return value + added_value
+
+
+""" 
+Branch and bond: depth first search
+---------------------------------------- """
 
 
 class DepthFirstSearch:
@@ -277,13 +295,21 @@ class DepthFirstSearch:
                     value=left_val,
                     room=left_room,
                     level=node.level + 1,
-                    estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                    estimate=estimation(
+                        left_val,
+                        left_room,
+                        self.items[node.level + 1:]
+                    ),
                     selection=node.selection + [item.index]
                 )
                 self.recursion(left)
             # then explore right: do not take next item
             right_val = node.value
-            right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
+            right_estimate = estimation(
+                right_val,
+                node.room,
+                self.items[node.level+1:]
+            )
             if right_estimate > self.best_node.value:
                 right = Node(
                     value=node.value,
@@ -299,7 +325,11 @@ class DepthFirstSearch:
         self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
         # init
         start_node = Node(
-            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+            value=0,
+            room=self.capacity,
+            estimate=estimation(0, self.capacity, self.items),
+            level=0,
+            selection=[]
         )
         self.best_node = start_node
         # solve
@@ -318,7 +348,11 @@ class DepthFirstSearch:
             self.solve()
         node = self.best_node
         selection = [i in node.selection for i in range(self.n)]
-        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+        return Output(
+            value=node.value,
+            weight=self.capacity - node.room,
+            selection=selection
+        )
 
 
 def depth_first_search(data):
@@ -352,7 +386,11 @@ class DepthFirstSearchNoRec:
                 item = self.items[node.level]
                 # append right first (will be explored later): do not take next item
                 right_val = node.value
-                right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
+                right_estimate = estimation(
+                    right_val,
+                    node.room,
+                    self.items[node.level+1:]
+                )
                 if right_estimate > self.best_node.value:
                     right = Node(
                         value=node.value,
@@ -370,7 +408,11 @@ class DepthFirstSearchNoRec:
                         value=left_val,
                         room=left_room,
                         level=node.level + 1,
-                        estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                        estimate=estimation(
+                            left_val,
+                            left_room,
+                            self.items[node.level + 1:]
+                        ),
                         selection=node.selection + [item.index]
                     )
                     self.node_stack.append(left)
@@ -380,7 +422,11 @@ class DepthFirstSearchNoRec:
         self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
         # init
         start_node = Node(
-            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+            value=0,
+            room=self.capacity,
+            estimate=estimation(0, self.capacity, self.items),
+            level=0,
+            selection=[]
         )
         self.node_stack.append(start_node)
         self.best_node = start_node
@@ -400,7 +446,11 @@ class DepthFirstSearchNoRec:
             self.solve()
         node = self.best_node
         selection = [i in node.selection for i in range(self.n)]
-        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+        return Output(
+            value=node.value,
+            weight=self.capacity - node.room,
+            selection=selection
+        )
 
 
 def depth_first_search_no_rec(data):
@@ -437,6 +487,7 @@ def insort_position(sorted_values, val):
 
 
 def insort_nodes(sorted_nodes, node):
+    """ Insert element in list while keeping it sorted """
     sorted_values = [_.estimate for _ in sorted_nodes]
     val = node.estimate
     pos = insort_position(sorted_values, val)
@@ -466,7 +517,11 @@ class BestFirstSearchNoRec:
             item = self.items[node.level]
             # append right first (will be explored later): do not take next item
             right_val = node.value
-            right_estimate = estimation(right_val, node.room, self.items[node.level + 1:])
+            right_estimate = estimation(
+                right_val,
+                node.room,
+                self.items[node.level + 1:]
+            )
             if right_estimate > self.best_node.value:
                 right = Node(
                     value=node.value,
@@ -498,7 +553,11 @@ class BestFirstSearchNoRec:
         self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
         # init
         start_node = Node(
-            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+            value=0,
+            room=self.capacity,
+            estimate=estimation(0, self.capacity, self.items),
+            level=0,
+            selection=[]
         )
         self.node_bag.append(start_node)
         self.best_node = start_node
@@ -518,7 +577,11 @@ class BestFirstSearchNoRec:
             self.solve()
         node = self.best_node
         selection = [i in node.selection for i in range(self.n)]
-        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+        return Output(
+            value=node.value,
+            weight=self.capacity - node.room,
+            selection=selection
+        )
 
 
 def best_first_search_no_rec(data):
@@ -562,7 +625,11 @@ class LeastDiscrepancySearch:
                     if n_down_items >= n_items_room:
                         # append right first (will be explored later): do not take next item
                         right_val = node.value
-                        right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
+                        right_estimate = estimation(
+                            right_val,
+                            node.room,
+                            self.items[node.level+1:]
+                        )
                         if right_estimate > self.best_node.value:
                             right = Node(
                                 value=node.value,
@@ -591,7 +658,11 @@ class LeastDiscrepancySearch:
         self.items.sort(key=lambda x: x.value / x.weight, reverse=True)
         # init
         start_node = Node(
-            value=0, room=self.capacity, estimate=estimation(0, self.capacity, self.items), level=0, selection=[]
+            value=0,
+            room=self.capacity,
+            estimate=estimation(0, self.capacity, self.items),
+            level=0,
+            selection=[]
         )
         self.best_node = start_node
         # solve
@@ -610,18 +681,25 @@ class LeastDiscrepancySearch:
             self.solve()
         node = self.best_node
         selection = [i in node.selection for i in range(self.n)]
-        return Output(value=node.value, weight=self.capacity - node.room, selection=selection)
+        return Output(
+            value=node.value,
+            weight=self.capacity - node.room,
+            selection=selection
+        )
 
 
 def least_discrepancy_search(data):
     return LeastDiscrepancySearch(data, greedy=True).get()
 
+
 def least_discrepancy_search_non_greedy(data):
     return LeastDiscrepancySearch(data, greedy=False).get()
+
 
 """ 
 Factories / submissions / etc.
 ------------------------------------ """
+
 
 solvers = {
     'brute_force': brute_force,
@@ -635,6 +713,7 @@ solvers = {
     'least_discrepancy_search': least_discrepancy_search,
     'least_discrepancy_search_non_greedy': least_discrepancy_search_non_greedy
 }
+
 
 def solve_it(input_data, solver=None, _timeout=None, **kwargs):
 
@@ -655,11 +734,9 @@ def solve_it(input_data, solver=None, _timeout=None, **kwargs):
         return output_data
 
     if _timeout:
-
         @timeout(_timeout)
         def really_solve_it(*args, **kwargs):
             return _solve_it(*args, **kwargs)
-
     else:
         really_solve_it = _solve_it
 
@@ -715,8 +792,13 @@ def plot_response_time(_solvers=(
                 times.loc[n, s] = time() - t
             except TimeoutError:
                 times.loc[n, s] = np.nan
-    times.plot(marker='s', markerfacecolor="None", logy=True, xticks=_n,
-               title='Time elapsed (seconds) against number of items')
+    times.plot(
+        marker='s',
+        markerfacecolor="None",
+        logy=True,
+        xticks=_n,
+        title='Time elapsed (seconds) against number of items'
+    )
     return times, results
 
 
