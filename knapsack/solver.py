@@ -537,14 +537,14 @@ class LeastDiscrepancySearch:
         self.items = data.items
         self.n = len(self.items)
         # greedy: tries first all-but-k objects. non-greedy: tries first k-maximum objects
-        self.greedy = 1 if greedy else -1
+        self.greedy = greedy
         self.visited_nodes = 0
         self.best_node = None
         self.solved = False
 
     def consume_bag(self, start_node):
-        for wave in range(self.n + 1):
-            max_items = wave if (not self.greedy) else self.n - wave
+        waves = range(self.n, -1, -1) if self.greedy else range(self.n + 1)
+        for max_items in waves:
             node_bag = [start_node]
             while len(node_bag) > 0:
                 # nodes are previously sorted by estimate
@@ -558,7 +558,7 @@ class LeastDiscrepancySearch:
                     item = self.items[node.level]
                     n_current_items = len(node.selection)
                     n_items_room = max_items - n_current_items
-                    n_down_items = self.n - node.level
+                    n_down_items = self.n - node.level - 1
                     if n_down_items >= n_items_room:
                         # append right first (will be explored later): do not take next item
                         right_val = node.value
@@ -696,25 +696,28 @@ def parse_file(input_file):
 
 
 def plot_response_time(_solvers=(
-            'brute_force_rec_light_no_glob',
             'dynamic_programming',
-            'depth_first_search_no_rec'
+            'depth_first_search_no_rec',
+            'best_first_search_no_rec',
+            'least_discrepancy_search',
+            'least_discrepancy_search_non_greedy'
         ),
-        _n=(4, 8, 12, 16, 19, 23, 25, 30, 50, 100),
-        _timeout=10):
+        _n=(4, 8, 12, 16, 19, 23, 25, 30, 50, 100, 200, 300, 400, 500, 1000, 10000),
+        _timeout=300):
 
-    df = pd.DataFrame(index=_n, columns=_solvers)
+    times = pd.DataFrame(index=_n, columns=_solvers)
+    results = pd.DataFrame(index=_n, columns=_solvers)
     for s in _solvers:
         for n in _n:
             t = time()
             try:
-                solve_file(f'./data/ks_{n}_0', s, _timeout=_timeout)
-                df.loc[n, s] = time() - t
+                results.loc[n, s] = solve_file(f'./data/ks_{n}_0', s, _timeout=_timeout)
+                times.loc[n, s] = time() - t
             except TimeoutError:
-                df.loc[n, s] = np.nan
-    df.plot(marker='s', markerfacecolor="None", logy=True, xticks=_n,
-            title='Time elapsed (seconds) against number of items')
-    return df
+                times.loc[n, s] = np.nan
+    times.plot(marker='s', markerfacecolor="None", logy=True, xticks=_n,
+               title='Time elapsed (seconds) against number of items')
+    return times, results
 
 
 if __name__ == '__main__':
