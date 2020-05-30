@@ -412,39 +412,35 @@ Branch and bond: best first search
 ------------------------------------ """
 
 
-def position_rec(sorted_values, val):
+def insort_position_rec(sorted_values, val):
     if len(sorted_values) == 0:
         return 0
     else:
         half = len(sorted_values) // 2
         if val > sorted_values[half]:
-            return half + 1 + position_rec(sorted_values[half+1:], val)
+            return half + 1 + insort_position_rec(sorted_values[half+1:], val)
         else:
-            return position_rec(sorted_values[:half], val)
+            return insort_position_rec(sorted_values[:half], val)
 
 
-def position(sorted_values, val):
+def insort_position(sorted_values, val):
     pos = 0
     cur_list = sorted_values
     while cur_list:
         half = len(cur_list) // 2
         if val > cur_list[half]:
             pos += half + 1
-            cur_list = sorted_values[half + 1:]
+            cur_list = cur_list[half + 1:]
         else:
-            cur_list = sorted_values[:half]
+            cur_list = cur_list[:half]
     return pos
-
-
-def insort(sorted_values, val):
-    pos = position(sorted_values, val)
-    return sorted_values[:pos] + [val] + sorted_values[pos:]
 
 
 def insort_nodes(sorted_nodes, node):
     sorted_values = [_.estimate for _ in sorted_nodes]
     val = node.estimate
-    return insort(sorted_values, val)
+    pos = insort_position(sorted_values, val)
+    sorted_nodes.insert(pos, node)
 
 
 class BestFirstSearchNoRec:
@@ -458,41 +454,44 @@ class BestFirstSearchNoRec:
         self.best_node = None
         self.solved = False
 
+    def consume_next_node(self):
+        # nodes are sorted by estimate (checked at insertion)
+        # pop node with best estimate
+        node = self.node_bag.pop(-1)
+        self.visited_nodes += 1
+        if node.level == self.n:  # all items visited
+            if (node.room >= 0) and (self.best_node.value < node.value):
+                self.best_node = node
+        else:
+            item = self.items[node.level]
+            # append right first (will be explored later): do not take next item
+            right_val = node.value
+            right_estimate = estimation(right_val, node.room, self.items[node.level + 1:])
+            if right_estimate > self.best_node.value:
+                right = Node(
+                    value=node.value,
+                    room=node.room,
+                    level=node.level + 1,
+                    estimate=right_estimate,
+                    selection=node.selection + []  # list copy
+                )
+                insort_nodes(self.node_bag, right)
+            # then append left (will be explored first): take next item
+            left_room = node.room - item.weight
+            if left_room >= 0:
+                left_val = node.value + item.value
+                left = Node(
+                    value=left_val,
+                    room=left_room,
+                    level=node.level + 1,
+                    estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
+                    selection=node.selection + [item.index]
+                )
+                insort_nodes(self.node_bag, left)
+
     def consume_bag(self):
         while len(self.node_bag) > 0:
-            # nodes are sorted by estimate (checked at insertion)
-            # pop node with best estimate
-            node = self.node_bag.pop(-1)
-            self.visited_nodes += 1
-            if node.level == self.n:  # all items visited
-                if (node.room >= 0) and (self.best_node.value < node.value):
-                    self.best_node = node
-            else:
-                item = self.items[node.level]
-                # append right first (will be explored later): do not take next item
-                right_val = node.value
-                right_estimate = estimation(right_val, node.room, self.items[node.level+1:])
-                if right_estimate > self.best_node.value:
-                    right = Node(
-                        value=node.value,
-                        room=node.room,
-                        level=node.level + 1,
-                        estimate=right_estimate,
-                        selection=node.selection + []  # list copy
-                    )
-                    self.node_bag = insort_nodes(self.node_bag, right)
-                # then append left (will be explored first): take next item
-                left_room = node.room - item.weight
-                if left_room >= 0:
-                    left_val = node.value + item.value
-                    left = Node(
-                        value=left_val,
-                        room=left_room,
-                        level=node.level + 1,
-                        estimate=estimation(left_val, left_room, self.items[node.level + 1:]),
-                        selection=node.selection + [item.index]
-                    )
-                    self.node_bag = insort_nodes(self.node_bag, left)
+            self.consume_next_node()
 
     def solve(self):
         # sort
