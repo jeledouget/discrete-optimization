@@ -32,6 +32,7 @@ test_data = Data(
 )
 
 class Output(BaseModel):
+    opt: bool
     value: int
     weight: int
     selection: List[bool]
@@ -57,7 +58,12 @@ def brute_force(data):
                 best_sum = val
                 item_selection = selection
                 final_weight = weight
-    return Output(value=best_sum, weight=final_weight, selection=item_selection)
+    return Output(
+        value=best_sum,
+        weight=final_weight,
+        selection=item_selection,
+        opt=True
+    )
 
 
 """
@@ -77,7 +83,8 @@ def brute_force_rec(data):
                 Output(
                     value=cur_val,
                     weight=cur_weight,
-                    selection=bool_selection
+                    selection=bool_selection,
+                    opt=True
                 )
             ]
         else:
@@ -142,7 +149,12 @@ def brute_force_rec_light(data):
             )
 
     _recursion(items, 0, 0, [])
-    res = Output(value=best_val, weight=best_weight, selection=best_selection)
+    res = Output(
+        value=best_val,
+        weight=best_weight,
+        selection=best_selection,
+        opt=True
+    )
 
     best_val = 0
     best_weight = 0
@@ -197,7 +209,8 @@ class BruteForceRecLightNoGlob:
         return Output(
             value=self.best_val,
             weight=self.best_weight,
-            selection=self.best_selection
+            selection=self.best_selection,
+            opt=True
         )
 
 def brute_force_rec_light_no_glob(data):
@@ -237,7 +250,12 @@ def dynamic_programming(data):
             current_weight += item.weight
             current_capacity -= item.weight
     # return
-    return Output(value=value, weight=current_weight, selection=selection)
+    return Output(
+        value=value,
+        weight=current_weight,
+        selection=selection,
+        opt=True
+    )
 
 
 """ 
@@ -351,7 +369,8 @@ class DepthFirstSearch:
         return Output(
             value=node.value,
             weight=self.capacity - node.room,
-            selection=selection
+            selection=selection,
+            opt=True
         )
 
 
@@ -449,7 +468,8 @@ class DepthFirstSearchNoRec:
         return Output(
             value=node.value,
             weight=self.capacity - node.room,
-            selection=selection
+            selection=selection,
+            opt=True
         )
 
 
@@ -580,7 +600,8 @@ class BestFirstSearchNoRec:
         return Output(
             value=node.value,
             weight=self.capacity - node.room,
-            selection=selection
+            selection=selection,
+            opt=True
         )
 
 
@@ -684,7 +705,8 @@ class LeastDiscrepancySearch:
         return Output(
             value=node.value,
             weight=self.capacity - node.room,
-            selection=selection
+            selection=selection,
+            opt=True
         )
 
 
@@ -728,7 +750,7 @@ def solve_it(input_data, solver=None, _timeout=None, **kwargs):
 
         # prepare the solution in the specified output format
         output_data = '\n'.join([
-            str(res.value) + ' ' + str(0),
+            str(res.value) + ' ' + str(res.opt),
             ' '.join([str(int(_)) for _ in res.selection])
         ])
         return output_data
