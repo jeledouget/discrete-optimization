@@ -741,7 +741,7 @@ def solve_it(input_data, solver=None, _timeout=None, **kwargs):
 
     def _solve_it(input_data, solver):
 
-        solver = solver or 'best_first_search_no_rec'  # hidden default
+        solver = solver or 'depth_first_search_no_rec'  # hidden default
 
         data = parse_data(input_data)
 
