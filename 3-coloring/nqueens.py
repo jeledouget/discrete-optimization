@@ -12,7 +12,7 @@ class Nqueens:
         self.plot = plot
         if self.plot:
             self.plot_latency = plot_latency
-            self.fig = plt.figure()
+            self.fig = plt.figure(figsize=(11, 6))
             self.update_plot()
 
     @property
@@ -59,7 +59,10 @@ class Nqueens:
 
     def update_plot(self):
         self.fig.clf()
+        self.fig.suptitle(f'{self.n}-queens problem')
         axes = self.fig.subplots(1, 2)
+        axes[0].set_title('Board', pad=20)
+        axes[1].set_title('Domain', pad=20)
         for i in range(self.n):
             axes[0].vlines(i + 0.5, ymin=-0.5, ymax=self.n - 0.5, lw=0.5)
             axes[1].vlines(i + 0.5, ymin=-0.5, ymax=self.n - 0.5, lw=0.5)
@@ -146,4 +149,8 @@ def place_queens(**kwargs):
 
 
 if __name__ == '__main__':
-    data = place_queens(initials=None, plot=True, plot_latency=0.01)
+    data = place_queens(
+        initials=None,
+        plot=True,
+        plot_latency=0.01
+    )
