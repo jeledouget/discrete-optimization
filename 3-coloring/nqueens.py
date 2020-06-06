@@ -31,15 +31,6 @@ class Nqueens:
             x[j, k] = 1
         return x"""
 
-    @property
-    def np_domain(self):
-        return self.domain
-        """x = np.zeros((self.n, self.n))
-        for i in range(self.n):
-            for j in self.domain[i]:
-                x[i, j] = 1
-        return x"""
-
     def row_constraints_ok(self, row):
         nb = sum(self.domain[row,:])
         if nb == 1:
@@ -113,9 +104,10 @@ class Nqueens:
                 return False
 
     def rollback(self):
-        # no possible pick: come back to old domain, remove descendant choiceru
+        # used when not possible to pick or reaching unfeasible domain
+        # come back to old domain, remove descendant choice
         if len(self.picked) == 0:
-            return False
+            return False  # not rollbackable
         domain, i, j = self.picked[-1]
         self.picked = self.picked[:-1]
         self.domain = domain
