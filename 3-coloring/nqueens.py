@@ -12,6 +12,7 @@ class Nqueens:
         self.initials = initials
         self.picked = []
         self.plot = plot
+        self.picks = 0
         if self.plot:
             self.plot_latency = plot_latency
             self.fig = plt.figure(figsize=(11, 6))
@@ -86,6 +87,17 @@ class Nqueens:
                 self.update_plot()
 
     def pick(self):
+        self.picks += 1
+
+        domains = self.domain.sum(1)
+        pickable = np.where(domains > 1)[0]
+        i = pickable[domains[domains > 1].argmin()]
+        j = min(np.where(self.domain[i, :])[0])
+        picked = (self.domain.copy(), i, j)
+        self.picked.append(picked)
+        self.domain[i, :j] = False
+        self.domain[i, j + 1:] = False
+        """
         while True:
             for i in range(self.n):
                 if sum(self.domain[i,:]) > 1:
@@ -94,7 +106,8 @@ class Nqueens:
                     self.picked.append(picked)
                     self.domain[i,:j] = False
                     self.domain[i, j+1:] = False
-                    return  
+                    return
+        """
 
     def rollback(self):
         # used when reaching unfeasible domain
@@ -136,7 +149,9 @@ def place_queens(**kwargs):
 
 if __name__ == '__main__':
     data = place_queens(
+        n=16,
         initials=None,
         plot=True,
         plot_latency=0.01
     )
+    print(f'Number of picks: {data.picks}')
