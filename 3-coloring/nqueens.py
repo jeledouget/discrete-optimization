@@ -4,6 +4,8 @@ from matplotlib import pyplot as plt
 
 class Nqueens:
 
+    """ Based on rows as decision variables """
+
     def __init__(self, n=8, initials=None, plot=True, plot_latency=0.5):
         self.n = n
         self.domain = np.ones((self.n, self.n), dtype=bool)
@@ -22,14 +24,6 @@ class Nqueens:
             if a[i,:].sum() > 1:
                 a[i,:] = False
         return a
-        """
-        x = np.zeros((self.n, self.n))
-        for i, val in enumerate(self.row):
-            if val != -1:
-                x[i, val] = 2
-        for i, (j,k,_) in enumerate(self.picked):
-            x[j, k] = 1
-        return x"""
 
     def row_constraints_ok(self, row):
         nb = sum(self.domain[row,:])
@@ -55,7 +49,7 @@ class Nqueens:
         return all([self.row_constraints_ok(i) for i in range(self.n)])
 
     def is_solved(self):
-        return self.is_feasible() and self.domain.sum() == self.n
+        return self.is_feasible() and (self.domain.sum() == self.n)
 
     def update_plot(self):
         self.fig.clf()
@@ -100,14 +94,10 @@ class Nqueens:
                     self.picked.append(picked)
                     self.domain[i,:j] = False
                     self.domain[i, j+1:] = False
-                    return True
-            # otherwise rollback
-            rolled_back = self.rollback()
-            if not rolled_back:
-                return False
+                    return  
 
     def rollback(self):
-        # used when not possible to pick or reaching unfeasible domain
+        # used when reaching unfeasible domain
         # come back to old domain, remove descendant choice
         if len(self.picked) == 0:
             return False  # not rollbackable
@@ -129,11 +119,7 @@ class Nqueens:
                     print(f'This {self.n}-queens problem has been successfully solved!')
                     return self
                 else:
-                    picked = self.pick()
-                    if not picked:
-                        print(f'This {self.n}-queens problem is not feasible '
-                              'under given original conditions')
-                        return
+                    self.pick()
             else:
                 rolled_back = self.rollback()
                 if not rolled_back:
