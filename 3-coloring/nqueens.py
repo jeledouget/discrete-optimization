@@ -50,27 +50,6 @@ class Nqueens:
         nb = self.domain[row,:].sum()
         if nb == 1:
             col = np.where(self.domain[row,:])[0][0]
-            return all(
-                [self.domain[i, col] == 0 for i in range(self.n) if i != row] +
-                [self.domain[i, col - (row - i)] == 0
-                 for i in range(self.n)
-                 if (i != row) and (0 <= col - (row - i) < self.n)
-                ] +
-                [self.domain[i, col + (row - i)] == 0
-                 for i in range(self.n)
-                 if (i != row) and (0 <= col + (row - i) < self.n)
-                ]
-            )
-        elif nb == 0:
-            return False
-        else:
-            return True
-
-    @timing
-    def row_constraints_ok(self, row):
-        nb = self.domain[row,:].sum()
-        if nb == 1:
-            col = np.where(self.domain[row,:])[0][0]
             return all([
                 self.domain[:,col].sum() == 1,
                 self.domain.diagonal(col - row).sum() == 1,
@@ -83,7 +62,7 @@ class Nqueens:
 
     @timing
     def is_feasible(self):
-        feasible = all([self.row_constraints_ok_(i) for i in range(self.n)])
+        feasible = all([self.row_constraints_ok(i) for i in range(self.n)])
         return feasible
 
     @timing
