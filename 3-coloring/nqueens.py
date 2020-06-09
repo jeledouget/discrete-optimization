@@ -22,7 +22,7 @@ class Nqueens:
 
     """ Based on rows as decision variables """
 
-    def __init__(self, n=8, initials=None, plot=False, plot_latency=0.5, final_plot=False):
+    def __init__(self, n=8, initials=None, plot=False, plot_latency=0.5, final_plot=False, verbose=True):
         self.n = n
         self.domain = np.ones((self.n, self.n), dtype=bool)
         self.initials = initials
@@ -32,6 +32,7 @@ class Nqueens:
         self.picks = 0
         self._solved = False
         self.timing = dict()
+        self.verbose = verbose
         self.plot_latency = plot_latency
         if self.plot:
             self.fig = plt.figure(figsize=(11, 6))
@@ -160,15 +161,17 @@ class Nqueens:
                     if self.final_plot and (not self.plot):
                         self.fig = plt.figure(figsize=(11, 6))
                         self.update_plot()
-                    print(f'This {self.n}-queens problem has been successfully solved!')
+                    if self.verbose:
+                        print(f'This {self.n}-queens problem has been successfully solved!')
                     return self
                 else:
                     self.pick()
             else:
                 rolled_back = self.rollback()
                 if not rolled_back:
-                    print(f'This {self.n}-queens problem is not feasible '
-                          'under given original conditions')
+                    if self.verbose:
+                        print(f'This {self.n}-queens problem is not feasible '
+                              'under given original conditions')
                     return
 
 
@@ -214,18 +217,80 @@ class NqueensQueue(Nqueens):
                     if self.final_plot and (not self.plot):
                         self.fig = plt.figure(figsize=(11, 6))
                         self.update_plot()
-                    print(f'This {self.n}-queens problem has been successfully solved!')
+                    if self.verbose:
+                        print(f'This {self.n}-queens problem has been successfully solved!')
                     return self
                 else:
                     self.split()
         # if we reach the end of the queue: not solvable
-        print(f'This {self.n}-queens problem is not feasible '
-              'under given original conditions')
+        if self.verbose:
+            print(f'This {self.n}-queens problem is not feasible '
+                  'under given original conditions')
         return
 
 
-class NqueensPrime:
-    pass
+class NqueensPrime(NqueensQueue):
+
+    """ Decompose in blocks. Solve by blocks. Fill in solution
+    Can be a gain for some high values ...
+    Could be super effective if we'd store a database of solutions """
+
+    def __init__(self, n=8, solver='NqueensQueue'):
+        self.solver = solver
+        self.n = n
+        self.domain = np.ones((self.n, self.n), dtype=bool)
+        self.primes = []
+        self.prime_solutions = {}
+
+    def plot(self):
+        fig = plt.figure(figsize=(11, 6))
+        fig.suptitle(f'{self.n}-queens problem')
+        axes = fig.subplots(1)
+        axes.set_title('Board', pad=20)
+        for i in range(self.n):
+            axes.vlines(i + 0.5, ymin=-0.5, ymax=self.n - 0.5, lw=0.5)
+            axes.hlines(i + 0.5, xmin=-0.5, xmax=self.n - 0.5, lw=0.5)
+        axes.matshow(self.domain)
+        plt.draw()
+
+    @staticmethod
+    def prime_decomposition_after_4(n):
+        primes = []
+        i = 2
+        while i*i <= n:
+            if (n >= 2 * i) and (n % i == 0):
+                primes.append(i)
+                n //= i
+            else:
+                i += 1
+        primes.append(n)
+        while (primes[0] < 4) and (len(primes) > 1):
+            primes = [primes[0] * primes[1]] + primes[2:]
+            primes.sort()
+        return primes
+
+    def combine(self):
+        solutions = [self.prime_solutions[p] for p in self.primes]
+        current = solutions[-1]
+        for sol in solutions[-2::-1]:
+            c = sol.tolist()
+            for i in range(len(c)):
+                for j in range(len(c[i])):
+                    c[i][j] = current * c[i][j]
+            current = np.block(c)
+        self.domain = current
+
+    def solve(self):
+        self.primes = self.prime_decomposition_after_4(self.n)
+        for p in self.primes:
+            if p in self.prime_solutions:
+                continue
+            self.prime_solutions[p] = solvers[self.solver](
+                n=p, initials=None, verbose=False
+            ).solve().domain
+            print(f'Solved {p}-queens problem')
+        self.combine()
+        return self
 
 
 """ Solve and benchmark
@@ -237,8 +302,8 @@ solvers = {
     'NqueensPrime': NqueensPrime
 }
 
-def place_queens(solver='Nqueens', **kwargs):
 
+def place_queens(solver='Nqueens', **kwargs):
     data = solvers[solver](**kwargs)
     data.solve()
     if data.is_solved():
