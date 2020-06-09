@@ -1,18 +1,37 @@
+from time import time
 import numpy as np
 from matplotlib import pyplot as plt
+
+
+# timing decorator
+def timing(func):
+    def wrapper(*args, **kwargs):
+        t = time()
+        name = func.__name__
+        res = func(*args, **kwargs)
+        self = args[0]
+        if name in self.timing:
+            self.timing[name].append(time() - t)
+        else:
+            self.timing[name] = [time() - t]
+        return res
+    return wrapper
 
 
 class Nqueens:
 
     """ Based on rows as decision variables """
 
-    def __init__(self, n=8, initials=None, plot=True, plot_latency=0.5):
+    def __init__(self, n=8, initials=None, plot=False, plot_latency=0.5, final_plot=False):
         self.n = n
         self.domain = np.ones((self.n, self.n), dtype=bool)
         self.initials = initials
         self.picked = []
         self.plot = plot
+        self.final_plot = final_plot
         self.picks = 0
+        self._solved = False
+        self.timing = dict()
         if self.plot:
             self.plot_latency = plot_latency
             self.fig = plt.figure(figsize=(11, 6))
@@ -26,8 +45,9 @@ class Nqueens:
                 a[i,:] = False
         return a
 
+    @timing
     def row_constraints_ok(self, row):
-        nb = sum(self.domain[row,:])
+        nb = self.domain[row,:].sum()
         if nb == 1:
             col = np.where(self.domain[row,:])[0][0]
             return all(
@@ -46,12 +66,34 @@ class Nqueens:
         else:
             return True
 
+    @timing
+    def row_constraints_ok(self, row):
+        nb = self.domain[row,:].sum()
+        if nb == 1:
+            col = np.where(self.domain[row,:])[0][0]
+            return all([
+                self.domain[:,col].sum() == 1,
+                self.domain.diagonal(col - row).sum() == 1,
+                np.fliplr(self.domain).diagonal(self.n - 1 - col - row).sum() == 1
+            ])
+        elif nb == 0:
+            return False
+        else:
+            return True
+
+    @timing
     def is_feasible(self):
-        return all([self.row_constraints_ok(i) for i in range(self.n)])
+        feasible = all([self.row_constraints_ok_(i) for i in range(self.n)])
+        return feasible
 
+    @timing
     def is_solved(self):
-        return self.is_feasible() and (self.domain.sum() == self.n)
+        if not self._solved:
+            solved = self.is_feasible() and (self.domain.sum() == self.n)
+            self._solved = solved
+        return self._solved
 
+    @timing
     def update_plot(self):
         self.fig.clf()
         self.fig.suptitle(f'{self.n}-queens problem')
@@ -66,8 +108,10 @@ class Nqueens:
         axes[0].matshow(self.board)
         axes[1].matshow(self.domain)
         plt.draw()
-        plt.pause(self.plot_latency)
+        if self.plot:
+            plt.pause(self.plot_latency)
 
+    @timing
     def prune(self):
         prune_again = True
         while prune_again:
@@ -86,9 +130,9 @@ class Nqueens:
             if self.plot:
                 self.update_plot()
 
+    @timing
     def pick(self):
         self.picks += 1
-
         domains = self.domain.sum(1)
         pickable = np.where(domains > 1)[0]
         i = pickable[domains[domains > 1].argmin()]
@@ -97,18 +141,8 @@ class Nqueens:
         self.picked.append(picked)
         self.domain[i, :j] = False
         self.domain[i, j + 1:] = False
-        """
-        while True:
-            for i in range(self.n):
-                if sum(self.domain[i,:]) > 1:
-                    j = min(np.where(self.domain[i,:])[0])
-                    picked = (self.domain.copy(), i, j)
-                    self.picked.append(picked)
-                    self.domain[i,:j] = False
-                    self.domain[i, j+1:] = False
-                    return
-        """
 
+    @timing
     def rollback(self):
         # used when reaching unfeasible domain
         # come back to old domain, remove descendant choice
@@ -120,6 +154,7 @@ class Nqueens:
         self.domain[i, j] = False
         return True
 
+    @timing
     def solve(self):
         if self.initials:
             for row, col in self.initials:
@@ -129,6 +164,9 @@ class Nqueens:
             self.prune()
             if self.is_feasible():
                 if self.is_solved():
+                    if self.final_plot and (not self.plot):
+                        self.fig = plt.figure(figsize=(11, 6))
+                        self.update_plot()
                     print(f'This {self.n}-queens problem has been successfully solved!')
                     return self
                 else:
@@ -144,14 +182,31 @@ class Nqueens:
 def place_queens(**kwargs):
     data = Nqueens(**kwargs)
     data.solve()
+    if data.is_solved():
+        print(f'Number of picks: {data.picks}')
     return data
 
 
-if __name__ == '__main__':
-    data = place_queens(
-        n=16,
-        initials=None,
-        plot=True,
-        plot_latency=0.01
-    )
-    print(f'Number of picks: {data.picks}')
+def benchmark(store=False):
+    N = 1000
+    times = np.zeros(N)
+    solved = np.zeros(N, dtype=bool)
+    picks = np.zeros(N, dtype=int)
+    for i in range(N):
+        t = time()
+        data = place_queens(
+            n=i,
+            initials=None,
+            plot=False,
+            plot_latency=0.001,
+            final_plot=False
+        )
+        solved[i] = data.is_solved()
+        picks[i] = data.picks
+        times[i] = time() - t
+    if store:
+        import pickle
+        with open('/tmp/nqueens.pkl', 'wb') as f:
+            pickle.dump((solved, picks, times), f)
+    else:
+        return solved, times, picks
