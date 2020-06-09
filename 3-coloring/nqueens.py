@@ -95,17 +95,28 @@ class Nqueens:
         prune_again = True
         while prune_again:
             prune_again = False
-            for i in range(self.n):
-                if sum(self.domain[i,:]) == 1:
+            for i in range(self.n):  # row
+                if self.domain[i,:].sum() == 1:
                     col = np.where(self.domain[i,:])[0][0]  # only value
-                    self.domain[:i, col] = False
-                    self.domain[i+1:, col] = False
-                    for j in range(self.n):
-                        if j != i:
-                            if 0 <= col - (i - j) < self.n:
-                                self.domain[j, col - (i - j)] = False
-                            if 0 <= col + (i - j) < self.n:
-                                self.domain[j, col + (i - j)] = False
+                    if any([
+                        self.domain[:, col].sum() > 1,
+                        self.domain.diagonal(col - i).sum() > 1,
+                        np.fliplr(self.domain).diagonal(self.n - 1 - col - i).sum() > 1
+                    ]):
+                        prune_again = True
+                        self.domain[:, col] = False
+                        diag_indices = [
+                            [j, col - (i - j)]
+                            for j in range(self.n)
+                            if 0 <= col - (i - j) < self.n
+                        ] + [
+                            [j, col + (i - j)]
+                            for j in range(self.n)
+                            if 0 <= col + (i - j) < self.n
+                        ]
+                        self.domain[tuple(zip(*diag_indices))] = False
+                        # put back True value
+                        self.domain[i, col] = True
             if self.plot:
                 self.update_plot()
 
@@ -115,11 +126,11 @@ class Nqueens:
         domains = self.domain.sum(1)
         pickable = np.where(domains > 1)[0]
         i = pickable[domains[domains > 1].argmin()]
-        j = min(np.where(self.domain[i, :])[0])
+        j = np.where(self.domain[i, :])[0].min()
         picked = (self.domain.copy(), i, j)
         self.picked.append(picked)
         self.domain[i, :j] = False
-        self.domain[i, j + 1:] = False
+        self.domain[i, j+1:] = False
 
     @timing
     def rollback(self):
@@ -167,6 +178,7 @@ def place_queens(**kwargs):
 
 
 def benchmark(store=False):
+    global solved, times, picks
     N = 1000
     times = np.zeros(N)
     solved = np.zeros(N, dtype=bool)
