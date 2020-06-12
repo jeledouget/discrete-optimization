@@ -1,3 +1,10 @@
+"""
+The n-queens problem requires to place n queens on a n x n chessboard
+such that none of them can attack each other (ie. all queens are on a different
+row, a different column and different diagonals)
+================================================================================ """
+
+
 from time import time
 import numpy as np
 from matplotlib import pyplot as plt

@@ -1,11 +1,15 @@
+"""
+Find a Magic Series of a given size.
+Any series is OK.
+A magic Series is a list such that : c[i] = len([x for x in c if x == i]) for all i
+==================================================================================== """
+
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 
 class MagicSeries:
-
-    """ Find a Magic Series of a given size. Any series is OK.
-    A magic Series is a list such that : c[i] = len([x for x in c if x == i]) for all i """
 
     def __init__(self, n, plot=True, plot_latency=2):
         self.n = n
