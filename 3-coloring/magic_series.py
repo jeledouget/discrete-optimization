@@ -17,6 +17,7 @@ class MagicSeries:
         self.plot_latency = plot_latency
         self.queue = []
         self.solutions = []
+        self.explorations = 0
 
     def is_solved(self):
         if not self.solved:
@@ -28,8 +29,13 @@ class MagicSeries:
 
     def is_feasible(self):
         """ No more that one 1 on a column; not all 0 on a column """
-        return ((self.constraints == 1).sum(0) <= 1).all() and \
-               ((self.constraints == 0).sum(0) < self.n).all()
+        c1 = ((self.constraints == 1).sum(0) <= 1).all()
+        c2 = ((self.constraints == 0).sum(0) < self.n).all()
+        indices = np.where(self.series >= 0)[0]
+        c3 = ((self.constraints[indices, :] == 1).sum(1) <= self.series[indices]).all()
+        row_indices = np.where(self.constraints == 1)[0]
+        c4 = row_indices.sum() <= self.n
+        return c1 and c2 and c3 and c4
 
     def update_series(self):
         """ assumes feasablity """
@@ -71,12 +77,7 @@ class MagicSeries:
                     if (self.constraints[higher_bound+1:, i] == 0).sum() < self.constraints[higher_bound+1:, i].shape[0]:
                         self.constraints[higher_bound+1:, i] = 0
                         prune_again = True
-                #else:
-                #    row = np.where(self.constraints[:, i] == 1)[0]
-                #    # series[i] = row
-                #    self.constraints[:,self.series[i]] = 0
-                #    self.constraints[i, self.series[i]] = 1
-            self.update_series()
+        self.update_series()
 
     def split(self):
         col_unknowns = (self.constraints == -1).sum(0)
@@ -99,18 +100,20 @@ class MagicSeries:
     def solve(self):
         self.queue.append((self.constraints, self.series))
         while self.queue:
+            self.explorations += 1
             self.solved = False
             self.constraints, self.series = self.queue.pop()
             self.prune()
-            if self._plot:
-                self.plot()
-                plt.pause(self.plot_latency)
             # input()
             if self.is_feasible():
                 if self.is_solved():
+                    print(f'found a {self.n}-magic-series : {self.series.tolist()}')
                     self.solutions.append(self.series.copy())
                 else:
                     self.split()
+            if self._plot:
+                self.plot()
+                plt.pause(self.plot_latency)
 
     def plot(self):
         if 'fig' not in self.__dict__:
