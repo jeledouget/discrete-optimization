@@ -42,6 +42,10 @@ class Sudoku1:
             self.initials = [(i + 1, j + 1, initials[i, j]) for i, j in zip(*pos)]
         else:
             self.initials = initials
+        for (i,j,k) in self.initials:
+            self.domain[i-1,j-1,:] = False
+            self.domain[i-1,j-1,k-1] = True
+            self.board[i-1,j-1] = k
         self.queue = []
         self.pruned_positions = []
         self.splits = 0
@@ -179,10 +183,6 @@ class Sudoku1:
     @timing
     def solve(self):
         """ If feasible, prune. If pruned, split."""
-        for (i,j,k) in self.initials:
-            self.domain[i-1,j-1,:] = False
-            self.domain[i-1,j-1,k-1] = True
-            self.board[i-1,j-1] = k
         self.queue.append((self.domain.copy(), self.pruned_positions.copy(), self.board.copy()))
         while self.queue:
             if self.plot:
@@ -313,33 +313,35 @@ solvers = {
     2: Sudoku2
 }
 
-benchmark_initials = (
-    (1, 8, 1),
-    (2, 6, 2),
-    (2, 9, 3),
-    (3, 4, 4),
-    (4, 7, 5),
-    (5, 1, 4),
-    (5, 3, 1),
-    (5, 4, 6),
-    (6, 3, 7),
-    (6, 4, 1),
-    (7, 2, 5),
-    (7, 7, 2),
-    (8, 5, 8),
-    (8, 8, 4),
-    (9, 2, 3),
-    (9, 4, 9),
-    (9, 5, 1)
-)
-
-s1_test = Sudoku1(initials=benchmark_initials)
-s2_test = Sudoku2(initials=benchmark_initials)
-
 if __name__ == '__main__':
 
-    s1_test.solve()
-    s2_test.solve()
+    # difficult level
+    benchmark_initials = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 2, 0, 0, 3],
+        [0, 0, 0, 4, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 5, 0, 0],
+        [4, 0, 1, 6, 0, 0, 0, 0, 0],
+        [0, 0, 7, 1, 0, 0, 0, 0, 0],
+        [0, 5, 0, 0, 0, 0, 2, 0, 0],
+        [0, 0, 0, 0, 8, 0, 0, 4, 0],
+        [0, 3, 0, 9, 1, 0, 0, 0, 0]
+    ])
+
+    benchmark_solution = np.array([
+        [7, 4, 5, 3, 6, 8, 9, 1, 2],
+        [8, 1, 9, 5, 7, 2, 4, 6, 3],
+        [3, 6, 2, 4, 9, 1, 8, 5, 7],
+        [6, 9, 3, 8, 2, 4, 5, 7, 1],
+        [4, 2, 1, 6, 5, 7, 3, 9, 8],
+        [5, 8, 7, 1, 3, 9, 6, 2, 4],
+        [1, 5, 8, 7, 4, 6, 2, 3, 9],
+        [9, 7, 6, 2, 8, 3, 1, 4, 5],
+        [2, 3, 4, 9, 1, 5, 7, 8, 6]
+    ])
+
+    s1 = Sudoku1(initials=benchmark_initials)
+    s2 = Sudoku2(initials=benchmark_initials)
 
     contre_christelle = np.array([
         [8, 0, 0, 1, 0, 0, 0, 7, 0],
@@ -353,9 +355,8 @@ if __name__ == '__main__':
         [0, 0, 5, 8, 1, 0, 0, 0, 6]
     ])
 
-    s = Sudoku1(
+    s_christelle = Sudoku1(
         initials=contre_christelle,
         plot=False,
         final_plot=True
     )
-    s.solve()
