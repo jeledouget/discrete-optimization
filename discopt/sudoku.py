@@ -96,7 +96,7 @@ class Sudoku1:
         pos = np.where(board > 0)
         for i,j in zip(*pos):
             val = self.board[i, j]
-            axes.text(j, self.n - 1 - i, val)
+            axes.text(j, self.n - 1 - i, val, horizontalalignment='center', verticalalignment='center')
         plt.draw()
         if self.plot_latency:
             plt.pause(self.plot_latency)
@@ -228,6 +228,53 @@ Try more efficient pruning
 class Sudoku2(Sudoku1):
 
     @timing
+    def feasible(self):
+        """
+        - No 2 same values on a row
+        - No 2 same values on a column
+        - No 2 same values in a subsquare
+        - Non-empty domain for each value in each row
+        - Non-empty domain for each value in each column
+        - Non-empty domain for each value in each subsquare
+        """
+        if not (self.domain.sum(2) >= 1).all():
+            return False
+        fixed_pos = np.where(self.domain.sum(2) == 1)
+        for val in range(self.n):
+            #
+            val_board = np.zeros((self.n, self.n), dtype=bool)
+            for i, j in zip(*fixed_pos):
+                if self.domain[i, j, val]:
+                    val_board[i, j] = True
+            if (val_board.sum(0) > 1).any():
+                return False
+            if (val_board.sum(1) > 1).any():
+                return False
+            for i in range(self.sqrt):
+                for j in range(self.sqrt):
+                    min_i = self.sqrt * (i // self.sqrt)
+                    min_j = self.sqrt * (j // self.sqrt)
+                    sub_val_board = val_board[min_i:min_i + self.sqrt, min_j:min_j + self.sqrt]
+                    if sub_val_board.sum() > 1:
+                        return False
+            # check subsquares are compatible
+            val_rows = set([i+x for i,j,sq in self.subsquares(val) for x in np.where(sq.sum(1))[0]])
+            if val_rows != set(range(self.n)):
+                return False
+            val_cols = set([j+y for i,j,sq in self.subsquares(val) for y in np.where(sq.sum(0))[0]])
+            if val_cols != set(range(self.n)):
+                return False
+        return True
+
+    def subsquares(self, val=None):
+        for i in range(0, self.n, self.sqrt):
+            for j in range(0, self.n, self.sqrt):
+                if val is None:
+                    yield i,j,self.domain[i:i+self.sqrt, j:j+self.sqrt,:]
+                else:
+                    yield i,j,self.domain[i:i + self.sqrt, j:j + self.sqrt, val]
+
+    @timing
     def prune(self):
         """ For each value (1 to N):
         - Intersect domains (row - col - subsquare)
@@ -248,8 +295,36 @@ class Sudoku2(Sudoku1):
                 self.domain[min_i:min_i+self.sqrt,min_j:min_j+self.sqrt, val] = False
                 self.domain[i,j,val] = True
                 self.pruned_positions.append((i,j))
+            # also: for each val, if alone in subsquare: remove all on row and col
+            # also: if domain of a value in a subsquare is limited to a row or a column : propagate
+            for val in range(self.n):
+                if self.domain[:,:,val].sum() > self.n:
+                    for sq_i,sq_j,square in self.subsquares(val):
+                        if square.sum() == 1:
+                            i,j = np.where(square)[0][0], np.where(square)[1][0]
+                            self.domain[sq_i+i,:sq_j,val] = False
+                            self.domain[sq_i + i, sq_j+self.sqrt:, val] = False
+                            self.domain[:sq_i, sq_j+ j, val] = False
+                            self.domain[sq_i + self.sqrt:, sq_j + j, val] = False
+            for i in range(self.sqrt):
+                for j in range(self.sqrt):
+                    min_i = self.sqrt * i
+                    min_j = self.sqrt * j
+                    for val in range(self.n):
+                        subsquare = self.domain[min_i:min_i+self.sqrt,min_j:min_j+self.sqrt, val]
+                        if subsquare.sum() > 1:
+                            pos = np.where(subsquare)
+                            if (pos[0] == pos[0][0]).all():
+                                row = pos[0][0] + min_i
+                                self.domain[row, :min_j, val] = False
+                                self.domain[row, min_j + self.sqrt:, val] = False
+                            if (pos[1] == pos[1][0]).all():
+                                col = pos[1][0] + min_j
+                                self.domain[:min_i, col, val] = False
+                                self.domain[min_i + self.sqrt:, col, val] = False
             new_s = self.domain.sum()
-        self.update_board()
+
+
 
 
 """
@@ -264,16 +339,20 @@ solvers = {
 s1 = Sudoku1(initials=benchmark_initials)
 s2 = Sudoku2(initials=benchmark_initials)
 
-contre_christelle = np.array(
-  [[8, 0, 0, 1, 0, 0, 0, 7, 0],
-   [0, 2, 0, 0, 4, 0, 8, 0, 0],
-   [0, 6, 0, 7, 0, 0, 0, 0, 0],
-   [0, 0, 0, 4, 7, 0, 9, 0, 8],
-   [2, 4, 0, 0, 8, 0, 0, 0, 0],
-   [0, 3, 8, 0, 0, 0, 0, 0, 5],
-   [0, 8, 0, 6, 0, 4, 1, 0, 0],
-   [9, 0, 0, 0, 0, 7, 2, 0, 4],
-   [0, 0, 5, 8, 1, 0, 0, 0, 6]])
+s1.solve()
+s2.solve()
+
+contre_christelle = np.array([
+    [8, 0, 0, 1, 0, 0, 0, 7, 0],
+    [0, 2, 0, 0, 4, 0, 8, 0, 0],
+    [0, 6, 0, 7, 0, 0, 0, 0, 0],
+    [0, 0, 0, 4, 7, 0, 9, 0, 8],
+    [2, 4, 0, 0, 8, 0, 0, 0, 0],
+    [0, 3, 8, 0, 0, 0, 0, 0, 5],
+    [0, 8, 0, 6, 0, 4, 1, 0, 0],
+    [9, 0, 0, 0, 0, 7, 2, 0, 4],
+    [0, 0, 5, 8, 1, 0, 0, 0, 6]
+])
 
 s = Sudoku1(
     initials=contre_christelle,
