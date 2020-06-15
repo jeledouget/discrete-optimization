@@ -7,22 +7,64 @@ no duplicates on any row, any column, any of the N subsquares (sqrt(N) * sqrt(N)
 ==================================================================================== """
 
 
+from time import time
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 
 
-class Sudoku:
+benchmark_initials = (
+    (1, 8, 1),
+    (2, 6, 2),
+    (2, 9, 3),
+    (3, 4, 4),
+    (4, 7, 5),
+    (5, 1, 4),
+    (5, 3, 1),
+    (5, 4, 6),
+    (6, 3, 7),
+    (6, 4, 1),
+    (7, 2, 5),
+    (7, 7, 2),
+    (8, 5, 8),
+    (8, 8, 4),
+    (9, 2, 3),
+    (9, 4, 9),
+    (9, 5, 1)
+)
 
-    def __init__(self, n=9, initials=(), plot=True, plot_latency=0.5, final_plot=True):
+
+# timing decorator
+def timing(func):
+    def wrapper(*args, **kwargs):
+        t = time()
+        name = func.__name__
+        res = func(*args, **kwargs)
+        self = args[0]
+        if name in self.timing:
+            self.timing[name].append(time() - t)
+        else:
+            self.timing[name] = [time() - t]
+        return res
+    return wrapper
+
+
+class Sudoku1:
+
+    def __init__(self, n=9, initials=(), plot=False, plot_latency=0.1, final_plot=False):
         if n not in np.array([4, 9, 16, 25, 36, 49, 64, 81, 100]):
             raise ValueError('n should be a square value in {4, 9, ..., 100}')
         self.n = n
         self.sqrt = int(np.sqrt(self.n))
         self.domain = np.ones((self.n, self.n, self.n), dtype=bool)
         self.board = np.zeros((self.n, self.n), dtype=int)
-        self.initials = initials
+        if isinstance(initials, np.ndarray):  # unknown values : zeros
+            pos = np.where(initials)
+            self.initials = [(i + 1, j + 1, initials[i, j]) for i, j in zip(*pos)]
+        else:
+            self.initials = initials
         self.queue = []
+        self.pruned_positions = []
         self.splits = 0
         self.picks = 0
         self.plot = plot
@@ -31,7 +73,9 @@ class Sudoku:
         self.plot_latency = plot_latency
         self.fig = None
 
+    @timing
     def update_plot(self):
+        self.update_board()
         if self.fig is None:
             self.fig = plt.figure(figsize=(10, 7))
         self.fig.clf()
@@ -46,7 +90,7 @@ class Sudoku:
             axes.hlines(i - 0.5, xmin=-0.5, xmax=self.n - 0.5, lw=2)
         for (i,j,_) in self.initials:
             axes.add_patch(patches.Rectangle(
-                (j - 0.5, self.n - 1.5 - i), 1, 1, edgecolor=None, facecolor='y', alpha=0.3
+                (j - 1.5, self.n - 0.5 - i), 1, 1, edgecolor=None, facecolor='y', alpha=0.3
             ))
         board = self.board
         pos = np.where(board > 0)
@@ -57,6 +101,7 @@ class Sudoku:
         if self.plot_latency:
             plt.pause(self.plot_latency)
 
+    @timing
     def feasible(self):
         """
         - No 2 same values on a row
@@ -66,12 +111,32 @@ class Sudoku:
         - Non-empty domain for each value in each column
         - Non-empty domain for each value in each subsquare
         """
-        return (self.domain.sum(2) >= 1).all()
+        if not (self.domain.sum(2) >= 1).all():
+            return False
+        fixed_pos = np.where(self.domain.sum(2) == 1)
+        for val in range(self.n):
+            val_board = np.zeros((self.n, self.n), dtype=bool)
+            for i,j in zip(*fixed_pos):
+                if self.domain[i,j,val]:
+                    val_board[i,j] = True
+            if (val_board.sum(0) > 1).any():
+                return False
+            if (val_board.sum(1) > 1).any():
+                return False
+            for i in range(self.sqrt):
+                for j in range(self.sqrt):
+                    min_i = self.sqrt * (i // self.sqrt)
+                    min_j = self.sqrt * (j // self.sqrt)
+                    sub_val_board = val_board[min_i:min_i+self.sqrt,min_j:min_j+self.sqrt]
+                    if sub_val_board.sum() > 1:
+                        return False
+        return True
 
+    @timing
     def solved(self):
         if not (self.domain.sum(2) == 1).all():
             return False
-        values = set(range(1, self.n + 1))
+        values = set(range(self.n))
         for i in range(self.n):
             rows = [np.where(self.domain[i, j, :])[0][0] for j in range(self.n)]
             cols = [np.where(self.domain[j, i, :])[0][0] for j in range(self.n)]
@@ -82,34 +147,37 @@ class Sudoku:
                 return False
         return True
 
+    @timing
     def prune(self):
         """ For each value (1 to N):
         - Intersect domains (row - col - subsquare)
         """
-        prune_again = True
         new_s = self.domain.sum()
-        while prune_again:
+        s = new_s + 1  # arbitrary initial value
+        while new_s < s:
             s = new_s
             # clean all existing values
             pos = np.where(self.domain.sum(2) == 1)
-            for i,j in zip(*pos):
-                val = np.where(self.domain[i,j,:])[0][0]
+            values = [(i,j,np.where(self.domain[i,j,:])[0][0])
+                      for i,j in zip(*pos) if (i,j) not in self.pruned_positions]
+            for i,j,val in values:
                 self.domain[i,:,val] = False
                 self.domain[:,j, val] = False
-                min_i = i // self.sqrt
-                min_j = j // self.sqrt
+                min_i = self.sqrt * (i // self.sqrt)
+                min_j = self.sqrt * (j // self.sqrt)
                 self.domain[min_i:min_i+self.sqrt,min_j:min_j+self.sqrt, val] = False
                 self.domain[i,j,val] = True
+                self.pruned_positions.append((i,j))
             new_s = self.domain.sum()
-            prune_again = (new_s > s)
-        self.update_board()
 
+    @timing
     def update_board(self):
         # remove all existing values
         pos = np.where(self.domain.sum(2) == 1)
         for i, j in zip(*pos):
             self.board[i,j] = 1 + np.where(self.domain[i,j,:])[0][0]
 
+    @timing
     def split(self):
         """
         Remove half possible values for a random location amongst minimum size domains
@@ -126,24 +194,26 @@ class Sudoku:
         left_domain[i,j,vals[:half]] = False
         right_domain = self.domain.copy()
         right_domain[i,j,vals[half:]] = False
-        self.queue.append(left_domain)
-        self.queue.append(right_domain)
+        self.queue.append((left_domain, self.pruned_positions.copy(), self.board.copy()))
+        self.queue.append((right_domain, self.pruned_positions.copy(), self.board.copy()))
 
+    @timing
     def solve(self):
         """ If feasible, prune. If pruned, split."""
         for (i,j,k) in self.initials:
-            self.domain[i,j,:] = False
-            self.domain[i,j,k-1] = True
-            self.board[i,j] = k
-        self.queue.append(self.domain.copy())
+            self.domain[i-1,j-1,:] = False
+            self.domain[i-1,j-1,k-1] = True
+            self.board[i-1,j-1] = k
+        self.queue.append((self.domain.copy(), self.pruned_positions.copy(), self.board.copy()))
         while self.queue:
             if self.plot:
                 self.update_plot()
             self.picks += 1
-            self.domain = self.queue.pop()
+            self.domain, self.pruned_positions, self.board = self.queue.pop()
             self.prune()
-            if self.feasible():
+            if self.feasible():  # board is up-to-date
                 if self.solved():
+                    self.update_board()
                     break
                 else:
                     self.split()
@@ -151,26 +221,63 @@ class Sudoku:
             self.update_plot()
 
 
-if __name__ == '__main__':
-    s = Sudoku(
-        n=9,
-        initials=(
-            (0, 7, 1),
-            (1, 5, 2),
-            (1, 8, 3),
-            (2, 3, 4),
-            (3, 6, 5),
-            (4, 0, 4),
-            (4, 2, 1),
-            (4, 3, 6),
-            (5, 2, 7),
-            (5, 3, 1),
-            (6, 1, 5),
-            (6, 6, 2),
-            (7, 4, 8),
-            (7, 7, 4),
-            (8, 1, 3),
-            (8, 3, 9),
-            (8, 4, 1)
-        )
-    )
+"""
+Try more efficient pruning
+----------------------------- """
+
+class Sudoku2(Sudoku1):
+
+    @timing
+    def prune(self):
+        """ For each value (1 to N):
+        - Intersect domains (row - col - subsquare)
+        """
+        new_s = self.domain.sum()
+        s = new_s + 1  # arbitrary initial value
+        while new_s < s:
+            s = new_s
+            # clean all existing values
+            pos = np.where(self.domain.sum(2) == 1)
+            values = [(i,j,np.where(self.domain[i,j,:])[0][0])
+                      for i,j in zip(*pos) if (i,j) not in self.pruned_positions]
+            for i,j,val in values:
+                self.domain[i,:,val] = False
+                self.domain[:,j, val] = False
+                min_i = self.sqrt * (i // self.sqrt)
+                min_j = self.sqrt * (j // self.sqrt)
+                self.domain[min_i:min_i+self.sqrt,min_j:min_j+self.sqrt, val] = False
+                self.domain[i,j,val] = True
+                self.pruned_positions.append((i,j))
+            new_s = self.domain.sum()
+        self.update_board()
+
+
+"""
+Instantiation / benchmark
+----------------------------- """
+
+solvers = {
+    1: Sudoku1,
+    2: Sudoku2
+}
+
+s1 = Sudoku1(initials=benchmark_initials)
+s2 = Sudoku2(initials=benchmark_initials)
+
+contre_christelle = np.array(
+  [[8, 0, 0, 1, 0, 0, 0, 7, 0],
+   [0, 2, 0, 0, 4, 0, 8, 0, 0],
+   [0, 6, 0, 7, 0, 0, 0, 0, 0],
+   [0, 0, 0, 4, 7, 0, 9, 0, 8],
+   [2, 4, 0, 0, 8, 0, 0, 0, 0],
+   [0, 3, 8, 0, 0, 0, 0, 0, 5],
+   [0, 8, 0, 6, 0, 4, 1, 0, 0],
+   [9, 0, 0, 0, 0, 7, 2, 0, 4],
+   [0, 0, 5, 8, 1, 0, 0, 0, 6]])
+
+s = Sudoku1(
+    initials=contre_christelle,
+    plot=False,
+    final_plot=True
+)
+s.solve()
