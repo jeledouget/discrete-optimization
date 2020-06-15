@@ -13,27 +13,6 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 
 
-benchmark_initials = (
-    (1, 8, 1),
-    (2, 6, 2),
-    (2, 9, 3),
-    (3, 4, 4),
-    (4, 7, 5),
-    (5, 1, 4),
-    (5, 3, 1),
-    (5, 4, 6),
-    (6, 3, 7),
-    (6, 4, 1),
-    (7, 2, 5),
-    (7, 7, 2),
-    (8, 5, 8),
-    (8, 8, 4),
-    (9, 2, 3),
-    (9, 4, 9),
-    (9, 5, 1)
-)
-
-
 # timing decorator
 def timing(func):
     def wrapper(*args, **kwargs):
@@ -325,8 +304,6 @@ class Sudoku2(Sudoku1):
             new_s = self.domain.sum()
 
 
-
-
 """
 Instantiation / benchmark
 ----------------------------- """
@@ -336,27 +313,49 @@ solvers = {
     2: Sudoku2
 }
 
-s1 = Sudoku1(initials=benchmark_initials)
-s2 = Sudoku2(initials=benchmark_initials)
-
-s1.solve()
-s2.solve()
-
-contre_christelle = np.array([
-    [8, 0, 0, 1, 0, 0, 0, 7, 0],
-    [0, 2, 0, 0, 4, 0, 8, 0, 0],
-    [0, 6, 0, 7, 0, 0, 0, 0, 0],
-    [0, 0, 0, 4, 7, 0, 9, 0, 8],
-    [2, 4, 0, 0, 8, 0, 0, 0, 0],
-    [0, 3, 8, 0, 0, 0, 0, 0, 5],
-    [0, 8, 0, 6, 0, 4, 1, 0, 0],
-    [9, 0, 0, 0, 0, 7, 2, 0, 4],
-    [0, 0, 5, 8, 1, 0, 0, 0, 6]
-])
-
-s = Sudoku1(
-    initials=contre_christelle,
-    plot=False,
-    final_plot=True
+benchmark_initials = (
+    (1, 8, 1),
+    (2, 6, 2),
+    (2, 9, 3),
+    (3, 4, 4),
+    (4, 7, 5),
+    (5, 1, 4),
+    (5, 3, 1),
+    (5, 4, 6),
+    (6, 3, 7),
+    (6, 4, 1),
+    (7, 2, 5),
+    (7, 7, 2),
+    (8, 5, 8),
+    (8, 8, 4),
+    (9, 2, 3),
+    (9, 4, 9),
+    (9, 5, 1)
 )
-s.solve()
+
+s1_test = Sudoku1(initials=benchmark_initials)
+s2_test = Sudoku2(initials=benchmark_initials)
+
+if __name__ == '__main__':
+
+    s1_test.solve()
+    s2_test.solve()
+
+    contre_christelle = np.array([
+        [8, 0, 0, 1, 0, 0, 0, 7, 0],
+        [0, 2, 0, 0, 4, 0, 8, 0, 0],
+        [0, 6, 0, 7, 0, 0, 0, 0, 0],
+        [0, 0, 0, 4, 7, 0, 9, 0, 8],
+        [2, 4, 0, 0, 8, 0, 0, 0, 0],
+        [0, 3, 8, 0, 0, 0, 0, 0, 5],
+        [0, 8, 0, 6, 0, 4, 1, 0, 0],
+        [9, 0, 0, 0, 0, 7, 2, 0, 4],
+        [0, 0, 5, 8, 1, 0, 0, 0, 6]
+    ])
+
+    s = Sudoku1(
+        initials=contre_christelle,
+        plot=False,
+        final_plot=True
+    )
+    s.solve()
